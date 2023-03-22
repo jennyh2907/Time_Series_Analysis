@@ -1,0 +1,93 @@
+#' ---
+#' title: "Time Series Final_Ching-Wen(Jenny)Huang"
+#' output: html_document
+#' date: "2023-03-18"
+#' ---
+#' 
+## ----setup, include=FALSE--------------------------------------------------------------------------------------------------------------------------------
+knitr::opts_chunk$set(echo = TRUE)
+library(fpp3)
+library(tsibble)
+library(forecast)
+library(ggplot2)
+library(dplyr)
+
+#' 
+#' a. Produce a time plot of the time series.
+#' 
+## --------------------------------------------------------------------------------------------------------------------------------------------------------
+pelt %>% autoplot(Hare)
+
+#' 
+#' b. What sort of ARIMA model is this (i.e., what are p, d and q)?
+#' 
+#' ARIMA(4,0,0)
+#' 
+## --------------------------------------------------------------------------------------------------------------------------------------------------------
+auto.arima(pelt$Hare)
+
+#' 
+#' 
+#' c. By examining the ACF and PACF of the data, explain why this model is appropriate.
+#' 
+#' Looking at ACF plot, the ACF of residuals is dropping slowly and smoothly, and there are strong lags in both directions. This is an indication of the residuals not being white noise and there is non-stationarity. As the PACF plot shows, the lags are slowly decreasing. Both lag 1 and lag 2 have a few spikes but are generally within apptoximate significance bounds. The values lying outside of the bounds indicate autoregressive process.
+#' 
+## --------------------------------------------------------------------------------------------------------------------------------------------------------
+pelt %>%
+  gg_tsdisplay(Hare, plot_type = "partial")
+
+# ACF plot
+ggAcf(pelt$Hare)
+
+# PACF plot
+ggPacf(pelt$Hare)
+
+# Run the test
+pelt %>%
+  mutate(hare = (Hare)) %>%
+  features(hare, ljung_box, lag = 10, dof= 5)
+
+#' 
+#' d. Without using the forecast() function, calculate forecasts for the next three years (1936–1939).
+#' 
+#' (1273.00, 6902.66, 18161.21)
+#' 
+## --------------------------------------------------------------------------------------------------------------------------------------------------------
+# Set the values
+number <- c(19520, 82110, 89760, 81660, 15760)
+
+c <- 30993
+w1 <- 0.82
+w2 <- -0.29
+w3 <- -0.01
+w4 <- -0.22
+
+# Prediction values
+ts_pred <- ts(rep(NA, 3), start = c(1936, 1), frequency = 1)
+
+# Calculate the forecast for the next three years
+ts_pred[1] <- c + w1*number[length(number)] + w2*number[length(number)-1] + w3*number[length(number)-2] + w4*number[length(number)-3]
+ts_pred[2] <- c + w1*ts_pred[1] + w2*number[length(number)] + w3*number[length(number)-1] + w4*number[length(number)-2]
+ts_pred[3] <- c + w1*ts_pred[2] + w2*ts_pred[1] + w3*number[length(number)] + w4*number[length(number)-1]
+ts_pred
+
+#' 
+#' e. Now fit the model in R and obtain the forecasts using forecast(). How are they different from yours? Why?
+#' 
+#' The values using forecast() are slightly higher than mine. These values are different from the ones obtained earlier is because the forecast() function takes into account the uncertainty in the model parameters and residuals while making the forecast. In part d, we are assuming the parameters are all certainly determined.
+#' 
+## --------------------------------------------------------------------------------------------------------------------------------------------------------
+# Extract the time series data from the data frame
+ts_data <- ts(pelt$Hare, start = c(1845))
+
+# Fit an ARIMA(4,0,0) model to the data
+fit <- arima(ts_data, order=c(4,0,0), method="ML")
+
+# Obtain forecasts for the next three years
+forecast_values <- forecast(fit, h=3)
+
+# Print the forecasted values
+forecast_values$mean
+
+#' 
+#' 
